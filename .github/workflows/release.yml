@@ -1,0 +1,77 @@
+name: Release Tesseract Training Data
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release'
+        required: true
+        default: 'v1.0.0'
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Prepare tessdata for release
+        run: |
+          # Copy configs directory into tessdata if it exists
+          if [ -d "configs" ]; then
+            cp -r configs tessdata/
+          fi
+          
+          # List files for verification
+          echo "Files in tessdata directory:"
+          ls -la tessdata/
+          
+      - name: Create archive
+        run: |
+          # Create tar.gz archive
+          tar -czf tesseract-traineddata.tar.gz tessdata/
+          
+          # Show archive info
+          echo "Archive created:"
+          ls -lh tesseract-traineddata.tar.gz
+          
+      - name: Determine tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: Tesseract Training Data ${{ steps.tag.outputs.tag_name }}
+          body: |
+            ## Tesseract Training Data Release
+            
+            This release contains Tesseract OCR training data files (tessdata) for multiple languages.
+            
+            ### Contents
+            - Language training data files (*.traineddata)
+            - Configuration files
+            
+            ### Usage
+            1. Download the `tesseract-traineddata.tar.gz` file
+            2. Extract it to your Tesseract tessdata directory
+            3. Use with Tesseract OCR for multi-language text recognition
+            
+            **Archive:** `tesseract-traineddata.tar.gz`
+          files: |
+            tesseract-traineddata.tar.gz
+          draft: false
+          prerelease: false
